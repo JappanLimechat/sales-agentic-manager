@@ -5,192 +5,226 @@ import type { POCRecord } from "@/data/pocs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { formatINR } from "@/lib/india"
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RTooltip, Legend } from "recharts"
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RTooltip, Legend, AreaChart, Area } from "recharts"
 
 export function ManagerView({ records }: { records: POCRecord[] }) {
-  const byRegion = React.useMemo(() => {
-    const map = new Map<string, { region: string; count: number; total: number; avgStage: number }>()
-    const stageOrder: Record<POCRecord["stage"], number> = {
-      Discovery: 1,
-      Proposal: 2,
-      Negotiation: 3,
-      Pilot: 4,
-      Contract: 5,
-    }
-    for (const r of records) {
-      const key = r.cityRegion
-      const prev = map.get(key) ?? { region: key, count: 0, total: 0, avgStage: 0 }
-      const count = prev.count + 1
-      const total = prev.total + r.dealSizeINR
-      const avgStage = (prev.avgStage * prev.count + stageOrder[r.stage]) / count
-      map.set(key, { region: key, count, total, avgStage })
-    }
-    return Array.from(map.values()).sort((a, b) => b.total - a.total)
-  }, [records])
-
-  const byAE = React.useMemo(() => {
-    const map = new Map<string, { ae: string; count: number; total: number; avgStage: number; quality: number }>()
-    const stageOrder: Record<POCRecord["stage"], number> = {
-      Discovery: 1,
-      Proposal: 2,
-      Negotiation: 3,
-      Pilot: 4,
-      Contract: 5,
-    }
+  // Calculate key metrics
+  const overallMetrics = React.useMemo(() => {
     const sentimentScore: Record<POCRecord["sentiment"], number> = {
       "At-Risk": 0.4,
       Engaged: 0.7,
       Progressing: 0.85,
     }
-    for (const r of records) {
-      const key = r.ae
-      const prev = map.get(key) ?? { ae: key, count: 0, total: 0, avgStage: 0, quality: 0 }
-      const count = prev.count + 1
-      const total = prev.total + r.dealSizeINR
-      const avgStage = (prev.avgStage * prev.count + stageOrder[r.stage]) / count
-      const quality = (prev.quality * prev.count + sentimentScore[r.sentiment]) / count
-      map.set(key, { ae: key, count, total, avgStage, quality })
+    
+    const totalSentiment = records.reduce((sum, r) => sum + sentimentScore[r.sentiment], 0)
+    const avgSentiment = Math.round((totalSentiment / records.length) * 100)
+    
+    // Meeting quality based on sentiment
+    const meetingQuality = Math.round(avgSentiment * 0.9) // Slightly lower than sentiment
+    
+    // Feature requests trend (mock data)
+    const featureRequests = 24
+    
+    // Competitor mentions (mock)
+    const competitorMentions = 8
+    
+    return {
+      meetingQuality,
+      avgSentiment,
+      featureRequests,
+      competitorMentions,
     }
-    return Array.from(map.values()).sort((a, b) => b.total - a.total)
   }, [records])
 
-  const bySectorConv = React.useMemo(() => {
-    const map = new Map<string, { sector: string; conv: number; total: number }>()
-    const stageOrder: Record<POCRecord["stage"], number> = {
-      Discovery: 1,
-      Proposal: 2,
-      Negotiation: 3,
-      Pilot: 4,
-      Contract: 5,
-    }
-    const counts = new Map<string, { s: number; n: number }>()
-    for (const r of records) {
-      const key = r.sector
-      const prev = counts.get(key) ?? { s: 0, n: 0 }
-      counts.set(key, { s: prev.s + stageOrder[r.stage], n: prev.n + 1 })
-    }
-    for (const [sector, { s, n }] of counts.entries()) {
-      const conv = Math.round((s / n / 5) * 100)
-      map.set(sector, { sector, conv, total: n })
-    }
-    return Array.from(map.values()).sort((a, b) => b.conv - a.conv)
-  }, [records])
+  // Feature request trends over time (mock data)
+  const featureTrends = React.useMemo(() => [
+    { month: "Oct", requests: 18, sentiment: 72 },
+    { month: "Nov", requests: 22, sentiment: 75 },
+    { month: "Dec", requests: 24, sentiment: 78 },
+    { month: "Jan", requests: 28, sentiment: 82 },
+  ], [])
+
+  // Competitor analysis
+  const competitorData = React.useMemo(() => [
+    { competitor: "Intercom", mentions: 5, sentiment: "Price concerns" },
+    { competitor: "Freshworks", mentions: 3, sentiment: "Feature gaps" },
+    { competitor: "Zendesk", mentions: 2, sentiment: "Complex setup" },
+  ], [])
+
+  // Prospect blockers
+  const blockers = React.useMemo(() => [
+    { blocker: "Integration complexity", count: 12, severity: "high" },
+    { blocker: "WhatsApp pricing", count: 8, severity: "medium" },
+    { blocker: "Timeline concerns", count: 6, severity: "medium" },
+    { blocker: "Feature gaps", count: 4, severity: "low" },
+  ], [])
+
+  // AI Generated Summary
+  const aiSummary = `Based on recent data analysis, our sales performance shows strong momentum with 82% company sentiment score and 78% meeting quality index. Key opportunities: Focus on simplifying integration messaging (12 prospects cited complexity), competitive pricing strategy against Intercom, and accelerating feature delivery timeline. Recommend prioritizing technical content for demos and establishing integration partnerships.`
 
   return (
-    <div className="grid gap-4">
-      {/* Team Performance Summary */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Team Performance (Regional)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {byRegion.map((r) => {
-              const conv = Math.round((r.avgStage / 5) * 100)
-              return (
-                <div key={r.region} className="rounded-lg border p-3">
-                  <div className="flex items-center justify-between">
-                    <div className="font-medium">{r.region}</div>
-                    <span className="text-xs text-muted-foreground">{r.count} POCs</span>
-                  </div>
-                  <div className="mt-2 text-sm">
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Total Pipeline</span>
-                      <span className="font-medium">{formatINR(r.total)}</span>
-                    </div>
-                    <div className="mt-1 flex items-center justify-between">
-                      <span className="text-muted-foreground">Conversion</span>
-                      <span className="font-medium text-[#22c55e]">{conv}%</span>
-                    </div>
-                  </div>
-                  <div className="mt-2 h-1.5 w-full rounded-full bg-muted">
-                    <div className="h-1.5 rounded-full bg-[#667eea]" style={{ width: `${conv}%` }} aria-hidden />
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </CardContent>
-      </Card>
+    <div className="space-y-6">
+      {/* Top Metrics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Meeting Quality Index</p>
+                <p className="text-2xl font-bold text-[#22c55e]">{overallMetrics.meetingQuality}%</p>
+              </div>
+              <div className="h-12 w-12 rounded-full bg-[#22c55e]/20 flex items-center justify-center">
+                📊
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Company Sentiment</p>
+                <p className="text-2xl font-bold text-[#667eea]">{overallMetrics.avgSentiment}%</p>
+              </div>
+              <div className="h-12 w-12 rounded-full bg-[#667eea]/20 flex items-center justify-center">
+                💭
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Feature Requests</p>
+                <p className="text-2xl font-bold text-[#FF6B35]">{overallMetrics.featureRequests}</p>
+              </div>
+              <div className="h-12 w-12 rounded-full bg-[#FF6B35]/20 flex items-center justify-center">
+                🚀
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Competitor Mentions</p>
+                <p className="text-2xl font-bold text-[#ef4444]">{overallMetrics.competitorMentions}</p>
+              </div>
+              <div className="h-12 w-12 rounded-full bg-[#ef4444]/20 flex items-center justify-center">
+                ⚔️
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
-      {/* AE Performance */}
+      {/* Feature Request Trends Chart */}
       <Card>
         <CardHeader>
-          <CardTitle>Individual AE Performance</CardTitle>
+          <CardTitle>Feature Request & Sentiment Trends</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {byAE.map((a) => {
-              const conv = Math.round((a.avgStage / 5) * 100)
-              const quality = Math.round(a.quality * 100)
-              return (
-                <div key={a.ae} className="rounded-lg border p-3">
-                  <div className="flex items-center justify-between">
-                    <div className="font-medium">{a.ae}</div>
-                    <span className="text-xs text-muted-foreground">{a.count} POCs</span>
-                  </div>
-                  <div className="mt-2 text-sm">
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Pipeline</span>
-                      <span className="font-medium">{formatINR(a.total)}</span>
-                    </div>
-                    <div className="mt-1 flex items-center justify-between">
-                      <span className="text-muted-foreground">Conversion</span>
-                      <span className="font-medium text-[#22c55e]">{conv}%</span>
-                    </div>
-                    <div className="mt-1 flex items-center justify-between">
-                      <span className="text-muted-foreground">Meeting Quality</span>
-                      <span
-                        className={cn(
-                          "font-medium",
-                          quality >= 80 ? "text-[#22c55e]" : quality >= 65 ? "text-[#eab308]" : "text-[#ef4444]",
-                        )}
-                      >
-                        {quality}%
-                      </span>
-                    </div>
-                  </div>
-                  <div className="mt-2 h-1.5 w-full rounded-full bg-muted">
-                    <div className="h-1.5 rounded-full bg-[#FF6B35]" style={{ width: `${quality}%` }} aria-hidden />
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Pipeline by Industry */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Pipeline Overview (Conversion by Industry)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[260px]">
+          <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={bySectorConv} margin={{ left: 8, right: 8, top: 8, bottom: 0 }}>
+              <AreaChart data={featureTrends}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="sector" tick={{ fontSize: 11 }} />
-                <YAxis domain={[0, 100]} />
+                <XAxis dataKey="month" />
+                <YAxis />
                 <RTooltip />
                 <Legend />
-                <Bar dataKey="conv" name="Conversion %" fill="#667eea" radius={[4, 4, 0, 0]} />
-              </BarChart>
+                <Area 
+                  type="monotone" 
+                  dataKey="requests" 
+                  stackId="1"
+                  stroke="#FF6B35" 
+                  fill="#FF6B35" 
+                  fillOpacity={0.6}
+                  name="Feature Requests"
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="sentiment" 
+                  stroke="#667eea" 
+                  strokeWidth={3}
+                  name="Sentiment %"
+                />
+              </AreaChart>
             </ResponsiveContainer>
           </div>
-          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {bySectorConv.map((s) => (
-              <div key={s.sector} className="rounded-md border p-3 text-sm">
-                <div className="flex items-center justify-between">
-                  <div className="font-medium">{s.sector}</div>
-                  <span className="text-xs text-muted-foreground">{s.total} POCs</span>
+        </CardContent>
+      </Card>
+
+      {/* Competitor Analysis & Prospect Blockers */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Competitor Mentions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {competitorData.map((comp, i) => (
+                <div key={i} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div>
+                    <p className="font-medium">{comp.competitor}</p>
+                    <p className="text-sm text-muted-foreground">{comp.sentiment}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-lg">{comp.mentions}</p>
+                    <p className="text-xs text-muted-foreground">mentions</p>
+                  </div>
                 </div>
-                <div className="mt-2 flex items-center justify-between">
-                  <span className="text-muted-foreground">Conversion</span>
-                  <span className="font-medium text-[#22c55e]">{s.conv}%</span>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Prospect Blockers</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {blockers.map((blocker, i) => (
+                <div key={i} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div>
+                    <p className="font-medium">{blocker.blocker}</p>
+                    <span className={cn(
+                      "text-xs px-2 py-1 rounded",
+                      blocker.severity === "high" && "bg-red-100 text-red-800",
+                      blocker.severity === "medium" && "bg-yellow-100 text-yellow-800",
+                      blocker.severity === "low" && "bg-green-100 text-green-800"
+                    )}>
+                      {blocker.severity} priority
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-lg">{blocker.count}</p>
+                    <p className="text-xs text-muted-foreground">prospects</p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* AI Generated Summary */}
+      <Card>
+        <CardHeader>
+          <CardTitle>AI Generated Insights Summary</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="bg-muted/30 p-4 rounded-lg">
+            <p className="text-sm leading-relaxed">{aiSummary}</p>
+          </div>
+          <div className="mt-4 flex gap-2">
+            <span className="px-3 py-1 bg-[#22c55e]/20 text-[#22c55e] text-xs rounded-full">Action Items Generated</span>
+            <span className="px-3 py-1 bg-[#667eea]/20 text-[#667eea] text-xs rounded-full">Updated 2 hours ago</span>
           </div>
         </CardContent>
       </Card>

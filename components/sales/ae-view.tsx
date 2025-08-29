@@ -2,156 +2,276 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { formatINR } from '@/lib/india';
 import { cn } from '@/lib/utils';
 import type { POCRecord } from '@/data/pocs';
-
-type KanbanItem = {
-  id: string;
-  company: string;
-  deal: number;
-  note: string;
-  sentiment: 'At-Risk' | 'Engaged' | 'Progressing';
-};
-
-type ColumnKey = 'urgent' | 'meetings' | 'ready';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RTooltip } from 'recharts';
 
 export function AEView({ records }: { records: POCRecord[] }) {
-  const initial: Record<ColumnKey, KanbanItem[]> = React.useMemo(() => {
-    const pick = records.slice(0, 12).map((r, i) => ({
-      id: `${i}-${r.company}`,
-      company: r.company,
-      deal: r.dealSizeINR,
-      note: i % 3 === 0 ? 'Follow-up on proposal' : i % 3 === 1 ? 'Prep agenda for today' : 'Finalize implementation scope',
-      sentiment: r.sentiment,
-    }));
+  // Calculate AE metrics
+  const aeMetrics = React.useMemo(() => {
+    const sentimentScore: Record<POCRecord["sentiment"], number> = {
+      "At-Risk": 0.4,
+      Engaged: 0.7,
+      Progressing: 0.85,
+    }
+    
+    const totalSentiment = records.reduce((sum, r) => sum + sentimentScore[r.sentiment], 0)
+    const avgSentiment = Math.round((totalSentiment / records.length) * 100)
+    const activePOCs = records.length
+    
+    // Calculate average deal cycle (mock calculation)
+    const avgDealCycle = Math.round(records.reduce((sum, r) => {
+      const stageOrder: Record<POCRecord["stage"], number> = {
+        Discovery: 30,
+        Proposal: 45,
+        Negotiation: 60,
+        Pilot: 75,
+        Contract: 90,
+      }
+      return sum + stageOrder[r.stage]
+    }, 0) / records.length)
+    
     return {
-      urgent: pick.filter((_, i) => i % 3 === 0),
-      meetings: pick.filter((_, i) => i % 3 === 1),
-      ready: pick.filter((_, i) => i % 3 === 2),
-    };
-  }, [records]);
+      avgSentiment,
+      activePOCs,
+      avgDealCycle,
+    }
+  }, [records])
 
-  const [cols, setCols] = React.useState<Record<ColumnKey, KanbanItem[]>>(initial);
-  const dragItem = React.useRef<{ from: ColumnKey; id: string } | null>(null);
+  // Sentiment trend data (mock)
+  const sentimentTrend = React.useMemo(() => [
+    { week: "Week 1", sentiment: 72 },
+    { week: "Week 2", sentiment: 75 },
+    { week: "Week 3", sentiment: 78 },
+    { week: "Week 4", sentiment: aeMetrics.avgSentiment },
+  ], [aeMetrics.avgSentiment])
 
-  function onDragStart(from: ColumnKey, id: string) {
-    dragItem.current = { from, id };
-  }
-  function onDrop(to: ColumnKey) {
-    const payload = dragItem.current;
-    if (!payload) return;
-    const { from, id } = payload;
-    if (from === to) return;
-    const item = cols[from].find(x => x.id === id);
-    if (!item) return;
-    setCols(prev => {
-      return {
-        ...prev,
-        [from]: prev[from].filter(x => x.id !== id),
-        [to]: [item, ...prev[to]],
-      };
-    });
-    dragItem.current = null;
-  }
+  // POC Priority data with enhanced information
+  const pocPriority = React.useMemo(() => 
+    records.slice(0, 8).map((r, i) => ({
+      ...r,
+      lastContact: ["2 days ago", "5 days ago", "1 week ago", "3 days ago", "1 day ago", "4 days ago", "6 days ago", "2 weeks ago"][i],
+      nextAction: ["Follow up proposal", "Schedule demo", "Send contract", "Technical call", "Pricing discussion", "Implementation planning", "Final approval", "Onboarding prep"][i]
+    })), [records])
+
+  // Follow-up reminders data
+  const followupReminders = React.useMemo(() => [
+    {
+      company: "Reliance Retail",
+      pocName: "Amit Kumar",
+      aeName: "Priya Sharma",
+      channel: "WhatsApp",
+      message: "Hi Amit, following up on our API integration discussion. Can we schedule a tech call this week?",
+      sentDate: "Jan 28, 10:30 AM",
+      nextFollowup: "Jan 30, 2:00 PM",
+      status: "Sent"
+    },
+    {
+      company: "Flipkart",
+      pocName: "Rohit Singh",
+      aeName: "Priya Sharma", 
+      channel: "Email",
+      message: "Proposal for seller onboarding automation with regional language support",
+      sentDate: "Jan 27, 4:15 PM",
+      nextFollowup: "Jan 29, 10:00 AM",
+      status: "Delivered"
+    },
+    {
+      company: "Tata Digital",
+      pocName: "Sneha Patel",
+      aeName: "Priya Sharma",
+      channel: "WhatsApp",
+      message: "Sharing the pricing breakdown for enterprise plan as discussed",
+      sentDate: "Jan 26, 11:20 AM", 
+      nextFollowup: "Jan 31, 9:00 AM",
+      status: "Read"
+    },
+  ], [])
 
   return (
-    <div className="grid gap-4">
+    <div className="space-y-6">
+      {/* Top Metric Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <KanbanColumn
-          title="Urgent Follow-ups"
-          tone="border-[#ef4444]"
-          items={cols.urgent}
-          onDragStart={id => onDragStart('urgent', id)}
-          onDrop={() => onDrop('urgent')}
-        />
-        <KanbanColumn
-          title="Today's Meetings"
-          tone="border-[#3b82f6]"
-          items={cols.meetings}
-          onDragStart={id => onDragStart('meetings', id)}
-          onDrop={() => onDrop('meetings')}
-        />
-        <KanbanColumn
-          title="Ready for Implementation"
-          tone="border-[#22c55e]"
-          items={cols.ready}
-          onDragStart={id => onDragStart('ready', id)}
-          onDrop={() => onDrop('ready')}
-        />
-      </div>
-
-      <MeetingInsights />
-
-      <MyPOCs records={records} />
-    </div>
-  );
-}
-
-function KanbanColumn({
-  title,
-  tone,
-  items,
-  onDragStart,
-  onDrop,
-}: {
-  title: string;
-  tone: string;
-  items: KanbanItem[];
-  onDragStart: (id: string) => void;
-  onDrop: () => void;
-}) {
-  return (
-    <Card
-      onDragOver={e => e.preventDefault()}
-      onDrop={e => {
-        e.preventDefault();
-        onDrop();
-      }}
-      className={cn('min-h-[260px] border-2 bg-card', tone)}
-    >
-      <CardHeader className="py-3">
-        <CardTitle className="text-sm">{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          {items.map(it => (
-            <div key={it.id} draggable onDragStart={() => onDragStart(it.id)} className="rounded-md border bg-muted/40 p-3">
-              <div className="flex items-start justify-between gap-2">
-                <div className="font-medium">{it.company}</div>
-                <span className="text-xs text-muted-foreground">{formatINR(it.deal)}</span>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Company Sentiment</p>
+                <p className="text-2xl font-bold text-[#667eea]">{aeMetrics.avgSentiment}%</p>
               </div>
-              <div className="mt-1 text-xs text-muted-foreground">{it.note}</div>
-              <div className="mt-2 flex items-center gap-2">
-                <SentimentBadge s={it.sentiment} />
-                <Button size="sm" variant="secondary">
-                  Send WhatsApp
-                </Button>
+              <div className="h-12 w-12 rounded-full bg-[#667eea]/20 flex items-center justify-center">
+                💭
               </div>
             </div>
-          ))}
-          {items.length === 0 && <div className="text-sm text-muted-foreground">Drop cards here to move them into {title}.</div>}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Active POCs</p>
+                <p className="text-2xl font-bold text-[#22c55e]">{aeMetrics.activePOCs}</p>
+              </div>
+              <div className="h-12 w-12 rounded-full bg-[#22c55e]/20 flex items-center justify-center">
+                📊
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Avg Deal Cycle</p>
+                <p className="text-2xl font-bold text-[#FF6B35]">{aeMetrics.avgDealCycle}d</p>
+              </div>
+              <div className="h-12 w-12 rounded-full bg-[#FF6B35]/20 flex items-center justify-center">
+                ⏰
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
-function SentimentBadge({ s }: { s: KanbanItem['sentiment'] }) {
-  return (
-    <span
-      className={cn(
-        'rounded px-2 py-0.5 text-xs',
-        s === 'At-Risk' && 'bg-[#ef4444]/20 text-[#ef4444]',
-        s === 'Engaged' && 'bg-[#eab308]/20 text-[#a16207]',
-        s === 'Progressing' && 'bg-[#22c55e]/20 text-[#15803d]',
-      )}
-    >
-      {s}
-    </span>
+      {/* Sentiment Trend Chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Sentiment Trend (Last 4 Weeks)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[250px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={sentimentTrend}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="week" />
+                <YAxis domain={[60, 100]} />
+                <RTooltip />
+                <Line 
+                  type="monotone" 
+                  dataKey="sentiment" 
+                  stroke="#667eea" 
+                  strokeWidth={3}
+                  dot={{ fill: "#667eea", strokeWidth: 2, r: 4 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* POC Priority Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>POC Priority Dashboard</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Company</TableHead>
+                  <TableHead>Deal Size</TableHead>
+                  <TableHead>Stage</TableHead>
+                  <TableHead>Last Contact</TableHead>
+                  <TableHead>Sentiment</TableHead>
+                  <TableHead>AE</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pocPriority.map((poc, i) => (
+                  <TableRow key={i}>
+                    <TableCell className="font-medium">{poc.company}</TableCell>
+                    <TableCell>{formatINR(poc.dealSizeINR)}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">{poc.stage}</Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{poc.lastContact}</TableCell>
+                    <TableCell>
+                      <Badge 
+                        className={cn(
+                          poc.sentiment === 'At-Risk' && 'bg-red-100 text-red-800',
+                          poc.sentiment === 'Engaged' && 'bg-yellow-100 text-yellow-800', 
+                          poc.sentiment === 'Progressing' && 'bg-green-100 text-green-800'
+                        )}
+                      >
+                        {poc.sentiment}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{poc.ae}</TableCell>
+                    <TableCell>
+                      <Button size="sm" variant="outline" className="text-xs">
+                        {poc.nextAction}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Follow-up Reminders */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Follow-up Reminders & Messages</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {followupReminders.map((reminder, i) => (
+              <div key={i} className="border rounded-lg p-4 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h4 className="font-medium">{reminder.company}</h4>
+                    <p className="text-sm text-muted-foreground">POC: {reminder.pocName} • AE: {reminder.aeName}</p>
+                  </div>
+                  <div className="text-right text-sm">
+                    <Badge 
+                      className={cn(
+                        reminder.channel === 'WhatsApp' && 'bg-green-100 text-green-800',
+                        reminder.channel === 'Email' && 'bg-blue-100 text-blue-800'
+                      )}
+                    >
+                      {reminder.channel}
+                    </Badge>
+                  </div>
+                </div>
+                
+                <div className="bg-muted/30 p-3 rounded text-sm">
+                  <p>{reminder.message}</p>
+                </div>
+                
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Sent: {reminder.sentDate}</span>
+                  <span>Next Follow-up: {reminder.nextFollowup}</span>
+                  <Badge 
+                    variant="outline"
+                    className={cn(
+                      reminder.status === 'Sent' && 'border-yellow-500 text-yellow-700',
+                      reminder.status === 'Delivered' && 'border-blue-500 text-blue-700',
+                      reminder.status === 'Read' && 'border-green-500 text-green-700'
+                    )}
+                  >
+                    {reminder.status}
+                  </Badge>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Recent Meeting Insights */}
+      <MeetingInsights />
+    </div>
   );
 }
 
