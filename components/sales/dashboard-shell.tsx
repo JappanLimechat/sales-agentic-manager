@@ -238,7 +238,7 @@ function ExecutiveView({ activeCount }: { activeCount: number }) {
 
       <POCPriorityTable />
 
-      <IndustryInsights />
+      {/* <IndustryInsights /> */}
     </div>
   )
 }

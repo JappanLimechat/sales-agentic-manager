@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect } from "react"
 import { DashboardShell } from "@/components/sales/dashboard-shell"
 import { AssistantPanel } from "@/components/chat/assistant-panel"
-import { defaultPOCs, type POCRecord, Views, Regions, type TimeRanges } from "@/data/pocs"
+import { defaultPOCs, type POCRecord, Views, Regions, TimeRanges } from "@/data/pocs"
 
 export default function Page() {
   const [query, setQuery] = useState("")
