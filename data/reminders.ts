@@ -16,6 +16,9 @@ export interface ReminderItem {
   phone?: string
 }
 
+// Use static dates to prevent hydration mismatches
+const baseDate = new Date('2025-01-29T10:00:00.000Z')
+
 export const reminders: ReminderItem[] = [
   {
     id: "rmd-001",
@@ -24,7 +27,7 @@ export const reminders: ReminderItem[] = [
     aeName: "Priya Nair",
     channel: "whatsapp",
     template: "Follow-up: POC demo recap",
-    sentAtIST: new Date().toISOString(),
+    sentAtIST: baseDate.toISOString(),
     status: "delivered",
     phone: "+91 9876543210",
   },
@@ -35,9 +38,9 @@ export const reminders: ReminderItem[] = [
     aeName: "Arjun Mehta",
     channel: "email",
     template: "ROI summary and case studies",
-    sentAtIST: new Date(Date.now() - 1000 * 60 * 60 * 20).toISOString(),
+    sentAtIST: new Date(baseDate.getTime() - 1000 * 60 * 60 * 20).toISOString(),
     status: "sent",
-    nextScheduledIST: new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString(),
+    nextScheduledIST: new Date(baseDate.getTime() + 1000 * 60 * 60 * 24).toISOString(),
   },
   {
     id: "rmd-003",
@@ -46,7 +49,7 @@ export const reminders: ReminderItem[] = [
     aeName: "Priya Nair",
     channel: "whatsapp",
     template: "Nudges for cart recovery",
-    sentAtIST: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
+    sentAtIST: new Date(baseDate.getTime() - 1000 * 60 * 60 * 48).toISOString(),
     status: "failed",
   },
   {
@@ -57,6 +60,6 @@ export const reminders: ReminderItem[] = [
     channel: "sms",
     template: "Demo reminder for tomorrow",
     status: "scheduled",
-    nextScheduledIST: new Date(Date.now() + 1000 * 60 * 60 * 2).toISOString(),
+    nextScheduledIST: new Date(baseDate.getTime() + 1000 * 60 * 60 * 2).toISOString(),
   },
 ]

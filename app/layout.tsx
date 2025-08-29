@@ -19,9 +19,14 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
+    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable} light`} style={{colorScheme: "light"}}>
       <body className="font-sans">
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+        <ThemeProvider 
+          attribute="class" 
+          defaultTheme="light" 
+          enableSystem={false}
+          disableTransitionOnChange
+        >
           <Suspense fallback={null}>
             {children}
             <Analytics />

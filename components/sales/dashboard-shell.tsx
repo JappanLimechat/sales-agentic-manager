@@ -282,7 +282,9 @@ function POCPriorityTable() {
   }
 
   function lastContactFromIndex(i: number) {
-    const d = new Date();
+    // Use fixed base date to prevent hydration mismatches
+    const baseDate = new Date('2025-01-29T00:00:00Z');
+    const d = new Date(baseDate);
     d.setDate(d.getDate() - (i % 14));
     return new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short' }).format(d);
   }

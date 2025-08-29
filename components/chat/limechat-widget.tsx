@@ -34,15 +34,6 @@ export function LimeChatWidget({
     ;(window as any).sendMessageToLimeChat = sendMessage
   }, [])
 
-  useEffect(() => {
-    // Optional: Send initial message when widget loads
-    const timer = setTimeout(() => {
-      sendMessage('Hi')
-    }, 1000)
-
-    return () => clearTimeout(timer)
-  }, [])
-
   return (
     <div className={className}>
       <iframe
