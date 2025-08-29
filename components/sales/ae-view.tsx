@@ -482,12 +482,12 @@ function TranscriptInsightsModal({ transcript }: { transcript: any }) {
     meeting_quality_index: 82,
     company_sentiment: 78,
     feature_requests: {
-      "AI automation for standard queries": 2,
-      "multilingual support": 2,
+      "AI automation for standard queries": 1,
+      "multilingual support": 1,
       "real-time inventory sync": 2,
-      "voice support integration": 2,
+      "voice support integration with meta": 2,
       "customer segmentation": 2,
-      "automated return handling": 1,
+      "agentic bot builder": 1,
       "integrations with logistics and CRM": 2
     },
     competitor_mentions: {
