@@ -45,10 +45,6 @@ export function LimeChatWidget({
           border: 'none',
           borderRadius: '8px',
         }}
-        onLoad={() => {
-          // Optional: Send message when iframe loads
-          setTimeout(() => sendMessage('Hi'), 500)
-        }}
       />
     </div>
   )
