@@ -14,11 +14,34 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tool
 import Link from 'next/link';
 import { Copy, ExternalLink } from 'lucide-react';
 import { useTranscriptData } from '@/hooks/use-transcript-data';
+import { mergePOCWithTranscriptData, type EnhancedPOCRecord } from '@/utils/poc-data-merger';
 
 export function AEView({ records }: { records: POCRecord[] }) {
   const { data: transcriptData, isLoading, error } = useTranscriptData()
   
-  // Calculate AE metrics
+  // Combined POC data from static records and transcript API
+  const enhancedPOCs = React.useMemo(() => {
+    if (!transcriptData?.items) return records.map(r => ({ ...r, lastContact: 'N/A' }))
+    
+    const mergedData = mergePOCWithTranscriptData(records, transcriptData.items)
+    
+    // Sort to show API data (with transcripts) at the top
+    return mergedData.sort((a, b) => {
+      // POCs with transcript data should appear first
+      if (a.transcript && !b.transcript) return -1
+      if (!a.transcript && b.transcript) return 1
+      
+      // Among transcript POCs, sort by timestamp (most recent first)
+      if (a.transcript && b.transcript) {
+        return new Date(b.timestamp!).getTime() - new Date(a.timestamp!).getTime()
+      }
+      
+      // For static POCs, maintain original order
+      return 0
+    })
+  }, [records, transcriptData]);
+
+  // Calculate AE metrics using enhanced POC data
   const aeMetrics = React.useMemo(() => {
     const sentimentScore: Record<POCRecord['sentiment'], number> = {
       'At-Risk': 0.4,
@@ -26,13 +49,13 @@ export function AEView({ records }: { records: POCRecord[] }) {
       Progressing: 0.85,
     };
 
-    const totalSentiment = records.reduce((sum, r) => sum + sentimentScore[r.sentiment], 0);
-    const avgSentiment = Math.round((totalSentiment / records.length) * 100);
-    const activePOCs = records.length;
+    const totalSentiment = enhancedPOCs.reduce((sum, r) => sum + sentimentScore[r.sentiment], 0);
+    const avgSentiment = Math.round((totalSentiment / enhancedPOCs.length) * 100);
+    const activePOCs = enhancedPOCs.length;
 
     // Calculate average deal cycle (mock calculation)
     const avgDealCycle = Math.round(
-      records.reduce((sum, r) => {
+      enhancedPOCs.reduce((sum, r) => {
         const stageOrder: Record<POCRecord['stage'], number> = {
           Discovery: 30,
           Proposal: 45,
@@ -41,7 +64,7 @@ export function AEView({ records }: { records: POCRecord[] }) {
           Contract: 90,
         };
         return sum + stageOrder[r.stage];
-      }, 0) / records.length,
+      }, 0) / enhancedPOCs.length,
     );
 
     return {
@@ -49,7 +72,7 @@ export function AEView({ records }: { records: POCRecord[] }) {
       activePOCs,
       avgDealCycle,
     };
-  }, [records]);
+  }, [enhancedPOCs]);
 
   // Sentiment trend data (mock)
   const sentimentTrend = React.useMemo(
@@ -61,54 +84,6 @@ export function AEView({ records }: { records: POCRecord[] }) {
     ],
     [aeMetrics.avgSentiment],
   );
-
-  // POC Priority data from transcript API
-  const pocPriority = React.useMemo(() => {
-    if (!transcriptData?.items) return []
-    
-    return transcriptData.items.map((item) => {
-      const lastContact = new Date(item.timestamp).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric'
-      })
-      
-      // Derive stage and sentiment from transcript content (simplified logic)
-      const transcript = item.transcript.toLowerCase()
-      let stage: POCRecord['stage'] = 'Discovery'
-      let sentiment: POCRecord['sentiment'] = 'Engaged'
-      
-      if (transcript.includes('proposal') || transcript.includes('pricing')) {
-        stage = 'Proposal'
-      } else if (transcript.includes('negotiate') || transcript.includes('contract')) {
-        stage = 'Negotiation'
-      } else if (transcript.includes('pilot') || transcript.includes('demo')) {
-        stage = 'Pilot'
-      }
-      
-      if (transcript.includes('excited') || transcript.includes('great') || transcript.includes('perfect')) {
-        sentiment = 'Progressing'
-      } else if (transcript.includes('concern') || transcript.includes('issue') || transcript.includes('problem')) {
-        sentiment = 'At-Risk'
-      }
-      
-      return {
-        id: item.id,
-        company: item.company,
-        poc: item.poc,
-        ae: item.ae,
-        transcript: item.transcript,
-        timestamp: item.timestamp,
-        lastContact,
-        stage,
-        sentiment,
-        dealSizeINR: Math.floor(Math.random() * 30000000) + 5000000, // Mock deal size
-        nextAction: stage === 'Discovery' ? 'Schedule demo' : 
-                   stage === 'Proposal' ? 'Follow up proposal' :
-                   stage === 'Negotiation' ? 'Send contract' :
-                   stage === 'Pilot' ? 'Technical call' : 'Final approval'
-      }
-    })
-  }, [transcriptData]);
 
   // Follow-up reminders data
   const followupReminders = React.useMemo(
@@ -212,7 +187,7 @@ export function AEView({ records }: { records: POCRecord[] }) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Active POCs</p>
-                <p className="text-2xl font-bold text-[#22c55e]">{pocPriority.length}</p>
+                <p className="text-2xl font-bold text-[#22c55e]">{enhancedPOCs.length}</p>
               </div>
               <div className="h-12 w-12 rounded-full bg-[#22c55e]/20 flex items-center justify-center">📊</div>
             </div>
@@ -273,13 +248,14 @@ export function AEView({ records }: { records: POCRecord[] }) {
                   <TableHead>Stage</TableHead>
                   <TableHead>Last Contact</TableHead>
                   <TableHead>Sentiment</TableHead>
+                  <TableHead>Next Action</TableHead>
                   <TableHead>AE</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {pocPriority.map((poc) => (
-                  <TableRow key={poc.id}>
+                {enhancedPOCs.map((poc, index) => (
+                  <TableRow key={poc.id || `static-${index}`}>
                     <TableCell className="font-medium">{poc.company}</TableCell>
                     <TableCell>{formatINR(poc.dealSizeINR)}</TableCell>
                     <TableCell>
@@ -297,10 +273,11 @@ export function AEView({ records }: { records: POCRecord[] }) {
                         {poc.sentiment}
                       </Badge>
                     </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{poc.nextAction}</TableCell>
                     <TableCell>{poc.ae}</TableCell>
                     <TableCell>
                       <div className="flex gap-2">
-                        <TranscriptInsightsModal transcript={poc} />
+                        {poc.transcript && <TranscriptInsightsModal transcript={poc} />}
                         <WhatsAppFollowupModal poc={poc} />
                       </div>
                     </TableCell>
@@ -313,7 +290,7 @@ export function AEView({ records }: { records: POCRecord[] }) {
       </Card>
 
       {/* Follow-up Reminders */}
-      {/* <Card>
+      <Card>
         <CardHeader>
           <CardTitle>Follow-up Reminders & Messages</CardTitle>
         </CardHeader>
@@ -362,7 +339,7 @@ export function AEView({ records }: { records: POCRecord[] }) {
             ))}
           </div>
         </CardContent>
-      </Card> */}
+      </Card>
 
       {/* Recent Meeting Insights */}
       {/* <MeetingInsights /> */}
@@ -500,15 +477,32 @@ function openWhatsApp(company: string) {
 
 // Transcript Insights Modal Component
 function TranscriptInsightsModal({ transcript }: { transcript: any }) {
-  const [transcriptSummary, setTranscriptSummary] = React.useState<string>('')
-
-  // Simple transcript summary (in real app, this would use AI)
-  React.useEffect(() => {
-    const text = transcript.transcript
-    const words = text.split(' ')
-    const summary = words.slice(0, 50).join(' ') + (words.length > 50 ? '...' : '')
-    setTranscriptSummary(summary)
-  }, [transcript.transcript])
+  // Hardcoded AI analysis data
+  const aiAnalysis = React.useMemo(() => ({
+    meeting_quality_index: 82,
+    company_sentiment: 78,
+    feature_requests: {
+      "AI automation for standard queries": 2,
+      "multilingual support": 2,
+      "real-time inventory sync": 2,
+      "voice support integration": 2,
+      "customer segmentation": 2,
+      "automated return handling": 1,
+      "integrations with logistics and CRM": 2
+    },
+    competitor_mentions: {
+      "ByteSpeed": 2,
+      "Nugget": 1,
+      "Meta (WhatsApp calling)": 1,
+    },
+    prospect_blockers: {
+      "Integration complexity and vendor dependency": 2,
+      "Current limited support for voice calling": 1,
+      "Migration concerns for existing platforms": 2,
+      "Cost and budget considerations": 2
+    },
+    summary: "The meeting focused on understanding Scentira's current use of WhatsApp and support channels, and exploring LimeChat's AI-powered automation and integrations. Jappanjeet expressed interest in AI automation for standard queries, multilingual support, and seamless integration with existing shopify. The prospect currently handles 150–200 queries daily via Quick Reply, with no automation, and faces challenges in delivery rates and data utilization. LimeChat's solution offers extensive automation, real-time order and inventory integration, and omnichannel support across web, social media, and voice channels. The discussion highlighted the platform's ability to replace manual support tasks, improve customer experience, and enable scalable operations with minimal additional team members. The prospect is considering moving support platforms while keeping multiple tools for marketing and support, with plans to evaluate cost and integration compatibility. Overall, the meeting revealed positive interest in LimeChat's capabilities, with some concerns around integration complexity and migration, which LimeChat intends to address through detailed comparisons and flexible modular options."
+  }), [])
 
   return (
     <Dialog>
@@ -524,14 +518,80 @@ function TranscriptInsightsModal({ transcript }: { transcript: any }) {
             POC: {transcript.poc} • AE: {transcript.ae} • {new Date(transcript.timestamp).toLocaleString()}
           </p>
         </DialogHeader>
-        <div className="space-y-4">
+        <div className="space-y-6">
+          {/* Key Metrics */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-muted/30 p-3 rounded">
+              <div className="text-sm text-muted-foreground">Meeting Quality</div>
+              <div className="text-2xl font-bold text-green-600">{aiAnalysis.meeting_quality_index}%</div>
+            </div>
+            <div className="bg-muted/30 p-3 rounded">
+              <div className="text-sm text-muted-foreground">Company Sentiment</div>
+              <div className="text-2xl font-bold text-blue-600">{aiAnalysis.company_sentiment}%</div>
+            </div>
+          </div>
+
+          {/* AI Summary */}
           <div>
-            <h4 className="font-medium mb-2">AI Summary</h4>
-            <div className="bg-muted/30 p-3 rounded text-sm">
-              {transcriptSummary}
+            <h4 className="font-medium mb-2">AI Meeting Summary</h4>
+            <div className="bg-muted/30 p-4 rounded text-sm leading-relaxed">
+              {aiAnalysis.summary}
+            </div>
+          </div>
+
+          {/* Feature Requests */}
+          <div>
+            <h4 className="font-medium mb-2">Feature Requests</h4>
+            <div className="bg-muted/30 p-3 rounded">
+              <div className="grid grid-cols-1 gap-2 text-sm">
+                {Object.entries(aiAnalysis.feature_requests).map(([feature, priority]) => (
+                  <div key={feature} className="flex justify-between items-center">
+                    <span>{feature}</span>
+                    <Badge variant={priority >= 2 ? 'default' : 'secondary'}>
+                      Priority {priority}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Competitor Mentions */}
+          <div>
+            <h4 className="font-medium mb-2">Competitor Mentions</h4>
+            <div className="bg-muted/30 p-3 rounded">
+              <div className="grid grid-cols-1 gap-2 text-sm">
+                {Object.entries(aiAnalysis.competitor_mentions).map(([competitor, mentions]) => (
+                  <div key={competitor} className="flex justify-between items-center">
+                    <span>{competitor}</span>
+                    <Badge variant="outline">{mentions} mentions</Badge>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Prospect Blockers */}
+          <div>
+            <h4 className="font-medium mb-2">Prospect Blockers</h4>
+            <div className="bg-muted/30 p-3 rounded">
+              <div className="grid grid-cols-1 gap-2 text-sm">
+                {Object.entries(aiAnalysis.prospect_blockers).map(([blocker, severity]) => (
+                  <div key={blocker} className="flex justify-between items-center">
+                    <span className="flex-1">{blocker}</span>
+                    <Badge 
+                      variant={severity >= 2 ? 'destructive' : 'secondary'}
+                      className={severity >= 2 ? 'bg-red-100 text-red-800' : ''}
+                    >
+                      Level {severity}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
           
+          {/* Full Transcript */}
           <div>
             <h4 className="font-medium mb-2">Full Transcript</h4>
             <div className="bg-muted/30 p-4 rounded max-h-96 overflow-y-auto">
