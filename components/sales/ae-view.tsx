@@ -14,6 +14,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tool
 import Link from 'next/link';
 import { Copy, ExternalLink } from 'lucide-react';
 import { useTranscriptData } from '@/hooks/use-transcript-data';
+import { useTranscriptInsights } from '@/hooks/use-transcript-insights';
 import { mergePOCWithTranscriptData, type EnhancedPOCRecord } from '@/utils/poc-data-merger';
 
 export function AEView({ records }: { records: POCRecord[] }) {
@@ -23,7 +24,10 @@ export function AEView({ records }: { records: POCRecord[] }) {
   const enhancedPOCs = React.useMemo(() => {
     if (!transcriptData?.items) return records.map(r => ({ ...r, lastContact: 'N/A' }))
     
-    const mergedData = mergePOCWithTranscriptData(records, transcriptData.items)
+    // const mergedData = mergePOCWithTranscriptData(records, transcriptData.items)
+    const mergedData = transcriptData.items
+    console.log(mergedData);
+    
     
     // Sort to show API data (with transcripts) at the top
     return mergedData.sort((a, b) => {
@@ -477,8 +481,14 @@ function openWhatsApp(company: string) {
 
 // Transcript Insights Modal Component
 function TranscriptInsightsModal({ transcript }: { transcript: any }) {
-  // Hardcoded AI analysis data
-  const aiAnalysis = React.useMemo(() => ({
+  console.log("Transcript", transcript)
+  const [isOpen, setIsOpen] = React.useState(false)
+  const { data: aiAnalysis, isLoading: insightsLoading, error: insightsError } = useTranscriptInsights(
+    isOpen ? transcript.id : null // Only call API when modal is open
+  )
+
+  // Fallback data in case API is not available
+  const fallbackAnalysis = React.useMemo(() => ({
     meeting_quality_index: 82,
     company_sentiment: 78,
     feature_requests: {
@@ -504,8 +514,11 @@ function TranscriptInsightsModal({ transcript }: { transcript: any }) {
     summary: "The meeting focused on understanding Scentira's current use of WhatsApp and support channels, and exploring LimeChat's AI-powered automation and integrations. Jappanjeet expressed interest in AI automation for standard queries, multilingual support, and seamless integration with existing shopify. The prospect currently handles 150–200 queries daily via Quick Reply, with no automation, and faces challenges in delivery rates and data utilization. LimeChat's solution offers extensive automation, real-time order and inventory integration, and omnichannel support across web, social media, and voice channels. The discussion highlighted the platform's ability to replace manual support tasks, improve customer experience, and enable scalable operations with minimal additional team members. The prospect is considering moving support platforms while keeping multiple tools for marketing and support, with plans to evaluate cost and integration compatibility. Overall, the meeting revealed positive interest in LimeChat's capabilities, with some concerns around integration complexity and migration, which LimeChat intends to address through detailed comparisons and flexible modular options."
   }), [])
 
+  // Use API data if available, otherwise use fallback
+  const displayAnalysis = aiAnalysis || fallbackAnalysis
+
   return (
-    <Dialog>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <Button size="sm" variant="outline" className="text-xs">
           View Transcript
@@ -519,15 +532,35 @@ function TranscriptInsightsModal({ transcript }: { transcript: any }) {
           </p>
         </DialogHeader>
         <div className="space-y-6">
+          {/* Loading State */}
+          {insightsLoading && (
+            <div className="text-center py-8">
+              <div className="animate-pulse space-y-4">
+                <div className="h-4 bg-muted rounded w-3/4 mx-auto"></div>
+                <div className="h-4 bg-muted rounded w-1/2 mx-auto"></div>
+              </div>
+              <p className="text-sm text-muted-foreground mt-2">Loading AI insights...</p>
+            </div>
+          )}
+
+          {/* Error State */}
+          {insightsError && !insightsLoading && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded p-3 mb-4">
+              <p className="text-sm text-yellow-800">
+                Unable to load AI insights. Showing fallback data.
+              </p>
+            </div>
+          )}
+
           {/* Key Metrics */}
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-muted/30 p-3 rounded">
               <div className="text-sm text-muted-foreground">Meeting Quality</div>
-              <div className="text-2xl font-bold text-green-600">{aiAnalysis.meeting_quality_index}%</div>
+              <div className="text-2xl font-bold text-green-600">{displayAnalysis.meeting_quality_index}%</div>
             </div>
             <div className="bg-muted/30 p-3 rounded">
               <div className="text-sm text-muted-foreground">Company Sentiment</div>
-              <div className="text-2xl font-bold text-blue-600">{aiAnalysis.company_sentiment}%</div>
+              <div className="text-2xl font-bold text-blue-600">{displayAnalysis.company_sentiment}%</div>
             </div>
           </div>
 
@@ -535,7 +568,7 @@ function TranscriptInsightsModal({ transcript }: { transcript: any }) {
           <div>
             <h4 className="font-medium mb-2">AI Meeting Summary</h4>
             <div className="bg-muted/30 p-4 rounded text-sm leading-relaxed">
-              {aiAnalysis.summary}
+              {displayAnalysis.summary}
             </div>
           </div>
 
@@ -544,7 +577,7 @@ function TranscriptInsightsModal({ transcript }: { transcript: any }) {
             <h4 className="font-medium mb-2">Feature Requests</h4>
             <div className="bg-muted/30 p-3 rounded">
               <div className="grid grid-cols-1 gap-2 text-sm">
-                {Object.entries(aiAnalysis.feature_requests).map(([feature, priority]) => (
+                {Object.entries(displayAnalysis.feature_requests).map(([feature, priority]) => (
                   <div key={feature} className="flex justify-between items-center">
                     <span>{feature}</span>
                     <Badge variant={priority >= 2 ? 'default' : 'secondary'}>
@@ -561,7 +594,7 @@ function TranscriptInsightsModal({ transcript }: { transcript: any }) {
             <h4 className="font-medium mb-2">Competitor Mentions</h4>
             <div className="bg-muted/30 p-3 rounded">
               <div className="grid grid-cols-1 gap-2 text-sm">
-                {Object.entries(aiAnalysis.competitor_mentions).map(([competitor, mentions]) => (
+                {Object.entries(displayAnalysis.competitor_mentions).map(([competitor, mentions]) => (
                   <div key={competitor} className="flex justify-between items-center">
                     <span>{competitor}</span>
                     <Badge variant="outline">{mentions} mentions</Badge>
@@ -576,7 +609,7 @@ function TranscriptInsightsModal({ transcript }: { transcript: any }) {
             <h4 className="font-medium mb-2">Prospect Blockers</h4>
             <div className="bg-muted/30 p-3 rounded">
               <div className="grid grid-cols-1 gap-2 text-sm">
-                {Object.entries(aiAnalysis.prospect_blockers).map(([blocker, severity]) => (
+                {Object.entries(displayAnalysis.prospect_blockers).map(([blocker, severity]) => (
                   <div key={blocker} className="flex justify-between items-center">
                     <span className="flex-1">{blocker}</span>
                     <Badge 
