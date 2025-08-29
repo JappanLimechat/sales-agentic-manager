@@ -1,3 +1,13 @@
+export type TranscriptRecord = {
+  id: number;
+  company: string;
+  poc: string;
+  ae: string;
+  transcript: string;
+  timestamp: string;
+  custom_metadata: Record<string, any>;
+};
+
 export type POCRecord = {
   company: string;
   sector: 'E-commerce' | 'BFSI' | 'Retail' | 'FMCG' | 'Healthcare' | 'EdTech' | 'IT Services' | 'FoodTech' | 'Logistics';

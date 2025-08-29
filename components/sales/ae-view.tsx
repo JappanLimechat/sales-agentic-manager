@@ -9,12 +9,15 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { formatINR } from '@/lib/india';
 import { cn } from '@/lib/utils';
-import type { POCRecord } from '@/data/pocs';
+import type { POCRecord, TranscriptRecord } from '@/data/pocs';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RTooltip } from 'recharts';
 import Link from 'next/link';
 import { Copy, ExternalLink } from 'lucide-react';
+import { useTranscriptData } from '@/hooks/use-transcript-data';
 
 export function AEView({ records }: { records: POCRecord[] }) {
+  const { data: transcriptData, isLoading, error } = useTranscriptData()
+  
   // Calculate AE metrics
   const aeMetrics = React.useMemo(() => {
     const sentimentScore: Record<POCRecord['sentiment'], number> = {
@@ -59,25 +62,53 @@ export function AEView({ records }: { records: POCRecord[] }) {
     [aeMetrics.avgSentiment],
   );
 
-  // POC Priority data with enhanced information
-  const pocPriority = React.useMemo(
-    () =>
-      records.slice(0, 8).map((r, i) => ({
-        ...r,
-        lastContact: ['2 days ago', '5 days ago', '1 week ago', '3 days ago', '1 day ago', '4 days ago', '6 days ago', '2 weeks ago'][i],
-        nextAction: [
-          'Follow up proposal',
-          'Schedule demo',
-          'Send contract',
-          'Technical call',
-          'Pricing discussion',
-          'Implementation planning',
-          'Final approval',
-          'Onboarding prep',
-        ][i],
-      })),
-    [records],
-  );
+  // POC Priority data from transcript API
+  const pocPriority = React.useMemo(() => {
+    if (!transcriptData?.items) return []
+    
+    return transcriptData.items.map((item) => {
+      const lastContact = new Date(item.timestamp).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric'
+      })
+      
+      // Derive stage and sentiment from transcript content (simplified logic)
+      const transcript = item.transcript.toLowerCase()
+      let stage: POCRecord['stage'] = 'Discovery'
+      let sentiment: POCRecord['sentiment'] = 'Engaged'
+      
+      if (transcript.includes('proposal') || transcript.includes('pricing')) {
+        stage = 'Proposal'
+      } else if (transcript.includes('negotiate') || transcript.includes('contract')) {
+        stage = 'Negotiation'
+      } else if (transcript.includes('pilot') || transcript.includes('demo')) {
+        stage = 'Pilot'
+      }
+      
+      if (transcript.includes('excited') || transcript.includes('great') || transcript.includes('perfect')) {
+        sentiment = 'Progressing'
+      } else if (transcript.includes('concern') || transcript.includes('issue') || transcript.includes('problem')) {
+        sentiment = 'At-Risk'
+      }
+      
+      return {
+        id: item.id,
+        company: item.company,
+        poc: item.poc,
+        ae: item.ae,
+        transcript: item.transcript,
+        timestamp: item.timestamp,
+        lastContact,
+        stage,
+        sentiment,
+        dealSizeINR: Math.floor(Math.random() * 30000000) + 5000000, // Mock deal size
+        nextAction: stage === 'Discovery' ? 'Schedule demo' : 
+                   stage === 'Proposal' ? 'Follow up proposal' :
+                   stage === 'Negotiation' ? 'Send contract' :
+                   stage === 'Pilot' ? 'Technical call' : 'Final approval'
+      }
+    })
+  }, [transcriptData]);
 
   // Follow-up reminders data
   const followupReminders = React.useMemo(
@@ -116,6 +147,50 @@ export function AEView({ records }: { records: POCRecord[] }) {
     [],
   );
 
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <div className="animate-pulse space-y-2">
+                  <div className="h-4 bg-muted rounded w-3/4"></div>
+                  <div className="h-8 bg-muted rounded w-1/2"></div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <Card>
+          <CardContent className="p-6">
+            <div className="animate-pulse space-y-4">
+              <div className="h-6 bg-muted rounded w-1/3"></div>
+              <div className="space-y-2">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-12 bg-muted rounded"></div>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardContent className="p-6 text-center">
+            <p className="text-red-600 mb-2">Error loading transcript data</p>
+            <p className="text-sm text-muted-foreground">{error.message}</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Top Metric Cards */}
@@ -137,7 +212,7 @@ export function AEView({ records }: { records: POCRecord[] }) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Active POCs</p>
-                <p className="text-2xl font-bold text-[#22c55e]">{aeMetrics.activePOCs}</p>
+                <p className="text-2xl font-bold text-[#22c55e]">{pocPriority.length}</p>
               </div>
               <div className="h-12 w-12 rounded-full bg-[#22c55e]/20 flex items-center justify-center">📊</div>
             </div>
@@ -183,7 +258,7 @@ export function AEView({ records }: { records: POCRecord[] }) {
         </CardContent>
       </Card> */}
 
-      {/* POC Priority Table */}
+      {/* POC Priority Dashboard */}
       <Card>
         <CardHeader>
           <CardTitle>POC Priority Dashboard</CardTitle>
@@ -203,8 +278,8 @@ export function AEView({ records }: { records: POCRecord[] }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {pocPriority.map((poc, i) => (
-                  <TableRow key={i}>
+                {pocPriority.map((poc) => (
+                  <TableRow key={poc.id}>
                     <TableCell className="font-medium">{poc.company}</TableCell>
                     <TableCell>{formatINR(poc.dealSizeINR)}</TableCell>
                     <TableCell>
@@ -225,7 +300,7 @@ export function AEView({ records }: { records: POCRecord[] }) {
                     <TableCell>{poc.ae}</TableCell>
                     <TableCell>
                       <div className="flex gap-2">
-                        <POCInsightsModal poc={poc} />
+                        <TranscriptInsightsModal transcript={poc} />
                         <WhatsAppFollowupModal poc={poc} />
                       </div>
                     </TableCell>
@@ -423,7 +498,55 @@ function openWhatsApp(company: string) {
   window.open(`https://wa.me/?text=${text}`, '_blank', 'noopener,noreferrer');
 }
 
-// POC Insights Modal Component
+// Transcript Insights Modal Component
+function TranscriptInsightsModal({ transcript }: { transcript: any }) {
+  const [transcriptSummary, setTranscriptSummary] = React.useState<string>('')
+
+  // Simple transcript summary (in real app, this would use AI)
+  React.useEffect(() => {
+    const text = transcript.transcript
+    const words = text.split(' ')
+    const summary = words.slice(0, 50).join(' ') + (words.length > 50 ? '...' : '')
+    setTranscriptSummary(summary)
+  }, [transcript.transcript])
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline" className="text-xs">
+          View Transcript
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{transcript.company} - Call Transcript</DialogTitle>
+          <p className="text-sm text-muted-foreground">
+            POC: {transcript.poc} • AE: {transcript.ae} • {new Date(transcript.timestamp).toLocaleString()}
+          </p>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <h4 className="font-medium mb-2">AI Summary</h4>
+            <div className="bg-muted/30 p-3 rounded text-sm">
+              {transcriptSummary}
+            </div>
+          </div>
+          
+          <div>
+            <h4 className="font-medium mb-2">Full Transcript</h4>
+            <div className="bg-muted/30 p-4 rounded max-h-96 overflow-y-auto">
+              <pre className="whitespace-pre-wrap text-sm font-sans leading-relaxed">
+                {transcript.transcript}
+              </pre>
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// POC Insights Modal Component (Legacy - keeping for backwards compatibility)
 function POCInsightsModal({ poc }: { poc: any }) {
   // Mock meeting insights data for the specific POC
   const meetingInsights = React.useMemo(() => {
