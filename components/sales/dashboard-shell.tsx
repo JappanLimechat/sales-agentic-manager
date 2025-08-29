@@ -29,6 +29,7 @@ import { ManagerView } from "@/components/sales/manager-view"
 import { UtilitiesPanel } from "@/components/utilities/utilities-panel"
 import Link from "next/link"
 import RemindersPanel from "@/components/sales/reminders-panel"
+import Image from "next/image"
 
 type Props = {
   view: (typeof Views)[number]
@@ -66,11 +67,13 @@ export function DashboardShell(props: Props) {
         <header className="border-b border-border">
           <div className="flex items-center justify-between gap-4 px-4 py-3">
             <div className="flex items-center gap-3">
-              <div className="size-8 rounded bg-[#667eea]"></div>
+              <div className="size-12 rounded bg-[#667eea]">
+                <Image src="/SAM-logo.png" alt="LimeChat" width={48} height={48} className="object-contain" />
+              </div>
               <div>
                 <h1 className="text-sm font-semibold leading-none text-pretty">
-                  <span className="text-foreground">LimeChat</span>{" "}
-                  <span className="text-muted-foreground">Sales Intelligence Platform</span>
+                  <span className="text-foreground">LimeChat's</span>{" "}
+                  <span className="text-muted-foreground">Ai Sales Agentic Manager (SAM)</span>
                 </h1>
                 <p className="text-xs text-muted-foreground">
                   IST <ISTClock />
