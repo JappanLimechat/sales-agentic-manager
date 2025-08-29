@@ -6,92 +6,115 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { formatINR } from '@/lib/india';
 import { cn } from '@/lib/utils';
 import type { POCRecord } from '@/data/pocs';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RTooltip } from 'recharts';
+import Link from 'next/link';
+import { Copy, ExternalLink } from 'lucide-react';
 
 export function AEView({ records }: { records: POCRecord[] }) {
   // Calculate AE metrics
   const aeMetrics = React.useMemo(() => {
-    const sentimentScore: Record<POCRecord["sentiment"], number> = {
-      "At-Risk": 0.4,
+    const sentimentScore: Record<POCRecord['sentiment'], number> = {
+      'At-Risk': 0.4,
       Engaged: 0.7,
       Progressing: 0.85,
-    }
-    
-    const totalSentiment = records.reduce((sum, r) => sum + sentimentScore[r.sentiment], 0)
-    const avgSentiment = Math.round((totalSentiment / records.length) * 100)
-    const activePOCs = records.length
-    
+    };
+
+    const totalSentiment = records.reduce((sum, r) => sum + sentimentScore[r.sentiment], 0);
+    const avgSentiment = Math.round((totalSentiment / records.length) * 100);
+    const activePOCs = records.length;
+
     // Calculate average deal cycle (mock calculation)
-    const avgDealCycle = Math.round(records.reduce((sum, r) => {
-      const stageOrder: Record<POCRecord["stage"], number> = {
-        Discovery: 30,
-        Proposal: 45,
-        Negotiation: 60,
-        Pilot: 75,
-        Contract: 90,
-      }
-      return sum + stageOrder[r.stage]
-    }, 0) / records.length)
-    
+    const avgDealCycle = Math.round(
+      records.reduce((sum, r) => {
+        const stageOrder: Record<POCRecord['stage'], number> = {
+          Discovery: 30,
+          Proposal: 45,
+          Negotiation: 60,
+          Pilot: 75,
+          Contract: 90,
+        };
+        return sum + stageOrder[r.stage];
+      }, 0) / records.length,
+    );
+
     return {
       avgSentiment,
       activePOCs,
       avgDealCycle,
-    }
-  }, [records])
+    };
+  }, [records]);
 
   // Sentiment trend data (mock)
-  const sentimentTrend = React.useMemo(() => [
-    { week: "Week 1", sentiment: 72 },
-    { week: "Week 2", sentiment: 75 },
-    { week: "Week 3", sentiment: 78 },
-    { week: "Week 4", sentiment: aeMetrics.avgSentiment },
-  ], [aeMetrics.avgSentiment])
+  const sentimentTrend = React.useMemo(
+    () => [
+      { week: 'Week 1', sentiment: 72 },
+      { week: 'Week 2', sentiment: 75 },
+      { week: 'Week 3', sentiment: 78 },
+      { week: 'Week 4', sentiment: aeMetrics.avgSentiment },
+    ],
+    [aeMetrics.avgSentiment],
+  );
 
   // POC Priority data with enhanced information
-  const pocPriority = React.useMemo(() => 
-    records.slice(0, 8).map((r, i) => ({
-      ...r,
-      lastContact: ["2 days ago", "5 days ago", "1 week ago", "3 days ago", "1 day ago", "4 days ago", "6 days ago", "2 weeks ago"][i],
-      nextAction: ["Follow up proposal", "Schedule demo", "Send contract", "Technical call", "Pricing discussion", "Implementation planning", "Final approval", "Onboarding prep"][i]
-    })), [records])
+  const pocPriority = React.useMemo(
+    () =>
+      records.slice(0, 8).map((r, i) => ({
+        ...r,
+        lastContact: ['2 days ago', '5 days ago', '1 week ago', '3 days ago', '1 day ago', '4 days ago', '6 days ago', '2 weeks ago'][i],
+        nextAction: [
+          'Follow up proposal',
+          'Schedule demo',
+          'Send contract',
+          'Technical call',
+          'Pricing discussion',
+          'Implementation planning',
+          'Final approval',
+          'Onboarding prep',
+        ][i],
+      })),
+    [records],
+  );
 
   // Follow-up reminders data
-  const followupReminders = React.useMemo(() => [
-    {
-      company: "Reliance Retail",
-      pocName: "Amit Kumar",
-      aeName: "Priya Sharma",
-      channel: "WhatsApp",
-      message: "Hi Amit, following up on our API integration discussion. Can we schedule a tech call this week?",
-      sentDate: "Jan 28, 10:30 AM",
-      nextFollowup: "Jan 30, 2:00 PM",
-      status: "Sent"
-    },
-    {
-      company: "Flipkart",
-      pocName: "Rohit Singh",
-      aeName: "Priya Sharma", 
-      channel: "Email",
-      message: "Proposal for seller onboarding automation with regional language support",
-      sentDate: "Jan 27, 4:15 PM",
-      nextFollowup: "Jan 29, 10:00 AM",
-      status: "Delivered"
-    },
-    {
-      company: "Tata Digital",
-      pocName: "Sneha Patel",
-      aeName: "Priya Sharma",
-      channel: "WhatsApp",
-      message: "Sharing the pricing breakdown for enterprise plan as discussed",
-      sentDate: "Jan 26, 11:20 AM", 
-      nextFollowup: "Jan 31, 9:00 AM",
-      status: "Read"
-    },
-  ], [])
+  const followupReminders = React.useMemo(
+    () => [
+      {
+        company: 'Reliance Retail',
+        pocName: 'Amit Kumar',
+        aeName: 'Priya Sharma',
+        channel: 'WhatsApp',
+        message: 'Hi Amit, following up on our API integration discussion. Can we schedule a tech call this week?',
+        sentDate: 'Jan 28, 10:30 AM',
+        nextFollowup: 'Jan 30, 2:00 PM',
+        status: 'Sent',
+      },
+      {
+        company: 'Flipkart',
+        pocName: 'Rohit Singh',
+        aeName: 'Priya Sharma',
+        channel: 'Email',
+        message: 'Proposal for seller onboarding automation with regional language support',
+        sentDate: 'Jan 27, 4:15 PM',
+        nextFollowup: 'Jan 29, 10:00 AM',
+        status: 'Delivered',
+      },
+      {
+        company: 'Tata Digital',
+        pocName: 'Sneha Patel',
+        aeName: 'Priya Sharma',
+        channel: 'WhatsApp',
+        message: 'Sharing the pricing breakdown for enterprise plan as discussed',
+        sentDate: 'Jan 26, 11:20 AM',
+        nextFollowup: 'Jan 31, 9:00 AM',
+        status: 'Read',
+      },
+    ],
+    [],
+  );
 
   return (
     <div className="space-y-6">
@@ -101,16 +124,14 @@ export function AEView({ records }: { records: POCRecord[] }) {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Company Sentiment</p>
+                <p className="text-sm text-muted-foreground">Prospect's Sentiment</p>
                 <p className="text-2xl font-bold text-[#667eea]">{aeMetrics.avgSentiment}%</p>
               </div>
-              <div className="h-12 w-12 rounded-full bg-[#667eea]/20 flex items-center justify-center">
-                💭
-              </div>
+              <div className="h-12 w-12 rounded-full bg-[#667eea]/20 flex items-center justify-center">💭</div>
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -118,13 +139,11 @@ export function AEView({ records }: { records: POCRecord[] }) {
                 <p className="text-sm text-muted-foreground">Active POCs</p>
                 <p className="text-2xl font-bold text-[#22c55e]">{aeMetrics.activePOCs}</p>
               </div>
-              <div className="h-12 w-12 rounded-full bg-[#22c55e]/20 flex items-center justify-center">
-                📊
-              </div>
+              <div className="h-12 w-12 rounded-full bg-[#22c55e]/20 flex items-center justify-center">📊</div>
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -132,16 +151,14 @@ export function AEView({ records }: { records: POCRecord[] }) {
                 <p className="text-sm text-muted-foreground">Avg Deal Cycle</p>
                 <p className="text-2xl font-bold text-[#FF6B35]">{aeMetrics.avgDealCycle}d</p>
               </div>
-              <div className="h-12 w-12 rounded-full bg-[#FF6B35]/20 flex items-center justify-center">
-                ⏰
-              </div>
+              <div className="h-12 w-12 rounded-full bg-[#FF6B35]/20 flex items-center justify-center">⏰</div>
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Sentiment Trend Chart */}
-      <Card>
+      {/* <Card>
         <CardHeader>
           <CardTitle>Sentiment Trend (Last 4 Weeks)</CardTitle>
         </CardHeader>
@@ -153,10 +170,10 @@ export function AEView({ records }: { records: POCRecord[] }) {
                 <XAxis dataKey="week" />
                 <YAxis domain={[60, 100]} />
                 <RTooltip />
-                <Line 
-                  type="monotone" 
-                  dataKey="sentiment" 
-                  stroke="#667eea" 
+                <Line
+                  type="monotone"
+                  dataKey="sentiment"
+                  stroke="#667eea"
                   strokeWidth={3}
                   dot={{ fill: "#667eea", strokeWidth: 2, r: 4 }}
                 />
@@ -164,7 +181,7 @@ export function AEView({ records }: { records: POCRecord[] }) {
             </ResponsiveContainer>
           </div>
         </CardContent>
-      </Card>
+      </Card> */}
 
       {/* POC Priority Table */}
       <Card>
@@ -195,11 +212,11 @@ export function AEView({ records }: { records: POCRecord[] }) {
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{poc.lastContact}</TableCell>
                     <TableCell>
-                      <Badge 
+                      <Badge
                         className={cn(
                           poc.sentiment === 'At-Risk' && 'bg-red-100 text-red-800',
-                          poc.sentiment === 'Engaged' && 'bg-yellow-100 text-yellow-800', 
-                          poc.sentiment === 'Progressing' && 'bg-green-100 text-green-800'
+                          poc.sentiment === 'Engaged' && 'bg-yellow-100 text-yellow-800',
+                          poc.sentiment === 'Progressing' && 'bg-green-100 text-green-800',
                         )}
                       >
                         {poc.sentiment}
@@ -207,9 +224,10 @@ export function AEView({ records }: { records: POCRecord[] }) {
                     </TableCell>
                     <TableCell>{poc.ae}</TableCell>
                     <TableCell>
-                      <Button size="sm" variant="outline" className="text-xs">
-                        {poc.nextAction}
-                      </Button>
+                      <div className="flex gap-2">
+                        <POCInsightsModal poc={poc} />
+                        <WhatsAppFollowupModal poc={poc} />
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -220,7 +238,7 @@ export function AEView({ records }: { records: POCRecord[] }) {
       </Card>
 
       {/* Follow-up Reminders */}
-      <Card>
+      {/* <Card>
         <CardHeader>
           <CardTitle>Follow-up Reminders & Messages</CardTitle>
         </CardHeader>
@@ -231,33 +249,35 @@ export function AEView({ records }: { records: POCRecord[] }) {
                 <div className="flex items-start justify-between">
                   <div>
                     <h4 className="font-medium">{reminder.company}</h4>
-                    <p className="text-sm text-muted-foreground">POC: {reminder.pocName} • AE: {reminder.aeName}</p>
+                    <p className="text-sm text-muted-foreground">
+                      POC: {reminder.pocName} • AE: {reminder.aeName}
+                    </p>
                   </div>
                   <div className="text-right text-sm">
-                    <Badge 
+                    <Badge
                       className={cn(
                         reminder.channel === 'WhatsApp' && 'bg-green-100 text-green-800',
-                        reminder.channel === 'Email' && 'bg-blue-100 text-blue-800'
+                        reminder.channel === 'Email' && 'bg-blue-100 text-blue-800',
                       )}
                     >
                       {reminder.channel}
                     </Badge>
                   </div>
                 </div>
-                
+
                 <div className="bg-muted/30 p-3 rounded text-sm">
                   <p>{reminder.message}</p>
                 </div>
-                
+
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>Sent: {reminder.sentDate}</span>
                   <span>Next Follow-up: {reminder.nextFollowup}</span>
-                  <Badge 
+                  <Badge
                     variant="outline"
                     className={cn(
                       reminder.status === 'Sent' && 'border-yellow-500 text-yellow-700',
                       reminder.status === 'Delivered' && 'border-blue-500 text-blue-700',
-                      reminder.status === 'Read' && 'border-green-500 text-green-700'
+                      reminder.status === 'Read' && 'border-green-500 text-green-700',
                     )}
                   >
                     {reminder.status}
@@ -267,10 +287,10 @@ export function AEView({ records }: { records: POCRecord[] }) {
             ))}
           </div>
         </CardContent>
-      </Card>
+      </Card> */}
 
       {/* Recent Meeting Insights */}
-      <MeetingInsights />
+      {/* <MeetingInsights /> */}
     </div>
   );
 }
@@ -349,7 +369,7 @@ function Row({ label, value, tone }: { label: string; value: string; tone?: 'At-
 
 function MyPOCs({ records }: { records: POCRecord[] }) {
   return (
-    <Card className='overflow-y-auto'>
+    <Card className="overflow-y-auto">
       <CardHeader>
         <CardTitle>My POCs</CardTitle>
       </CardHeader>
@@ -401,6 +421,235 @@ function MyPOCs({ records }: { records: POCRecord[] }) {
 function openWhatsApp(company: string) {
   const text = encodeURIComponent(`Hi ${company} team, following up on our discussion. Can we schedule next steps?`);
   window.open(`https://wa.me/?text=${text}`, '_blank', 'noopener,noreferrer');
+}
+
+// POC Insights Modal Component
+function POCInsightsModal({ poc }: { poc: any }) {
+  // Mock meeting insights data for the specific POC
+  const meetingInsights = React.useMemo(() => {
+    const insights = {
+      'Reliance Retail': {
+        language: 'Regional + Hindi',
+        summary: 'Need 10 regional languages by Q2; focus on catalog automation.',
+        objections: ['Integration effort', 'Timeline risk'],
+        features: ['Vernacular', 'ONDC catalog'],
+        next: 'Share phased rollout plan and sample Hindi/Kannada scripts.',
+        sentiment: 'Engaged' as const,
+      },
+      'Flipkart': {
+        language: 'English',
+        summary: 'Seller onboarding automation for Bharat users; peak season scaling.',
+        objections: ['WhatsApp cost'],
+        features: ['Hinglish', 'UPI status'],
+        next: 'Quantify ROI with WhatsApp session pricing; provide template copy.',
+        sentiment: 'Progressing' as const,
+      },
+      'Tata Digital (Tata Neu)': {
+        language: 'English + Hindi',
+        summary: 'Multi-brand marketplace integration with regional support.',
+        objections: ['Complex integration', 'Data privacy'],
+        features: ['Multi-language', 'Brand customization'],
+        next: 'Technical architecture review and security compliance discussion.',
+        sentiment: 'Engaged' as const,
+      },
+    };
+    
+    return insights[poc.company as keyof typeof insights] || {
+      language: 'English',
+      summary: 'General discussion about implementation and requirements.',
+      objections: ['Budget constraints', 'Timeline concerns'],
+      features: ['WhatsApp API', 'Integration support'],
+      next: 'Follow up with detailed proposal and timeline.',
+      sentiment: poc.sentiment,
+    };
+  }, [poc.company, poc.sentiment]);
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline" className="text-xs">
+          View Insights
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{poc.company} - Meeting Insights</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-4">
+            <div className="space-y-2 text-sm">
+              <Row label="Deal Size" value={formatINR(poc.dealSizeINR)} />
+              <Row label="Stage" value={poc.stage} />
+              <Row label="Language" value={meetingInsights.language} />
+              <Row label="Summary" value={meetingInsights.summary} />
+              <Row label="Objections" value={meetingInsights.objections.join(', ')} />
+              <Row label="Feature requests" value={meetingInsights.features.join(', ')} />
+              <Row label="Next steps" value={meetingInsights.next} />
+              <Row label="Sentiment" value={meetingInsights.sentiment} tone={meetingInsights.sentiment} />
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// WhatsApp Follow-up Modal Component
+function WhatsAppFollowupModal({ poc }: { poc: any }) {
+  const [copied, setCopied] = React.useState(false);
+  
+  // Generate AI content based on POC data
+  const aiGeneratedContent = React.useMemo(() => {
+    const templates = {
+      'Discovery': `Hi ${poc.company} team! 👋
+
+Hope you're doing well! Following up on our discussion about LimeChat's WhatsApp automation solution.
+
+🚀 Key benefits for ${poc.company}:
+• Automate customer support with AI
+• Handle ${Math.round(poc.dealSizeINR/1000000)}M+ customer interactions
+• Reduce response time by 80%
+• Multi-language support for Indian markets
+
+Would love to schedule a 30-min demo this week to show you the platform in action!
+
+Best regards,
+${poc.ae}`,
+      
+      'Proposal': `Hi ${poc.company} team! 🤝
+
+Thanks for your time yesterday! I've prepared a customized proposal for your WhatsApp automation needs.
+
+📊 Projected ROI for ${poc.company}:
+• Monthly savings: ₹${formatINR(Math.round(poc.dealSizeINR/12)).replace('₹', '')}
+• Customer satisfaction increase: 40%
+• Agent productivity boost: 3x
+
+The proposal includes implementation timeline and pricing details. Can we schedule a call to discuss next steps?
+
+Looking forward to partnering with you!
+
+Best,
+${poc.ae}`,
+
+      'Negotiation': `Hi ${poc.company} team! 💼
+
+I've reviewed your feedback on our proposal and made the requested adjustments.
+
+✅ Updated proposal highlights:
+• Flexible pricing model as discussed
+• Extended support during rollout
+• Custom integrations for your existing systems
+• Dedicated success manager
+
+The revised proposal should address all your concerns. Ready to move forward?
+
+Cheers,
+${poc.ae}`,
+
+      'Pilot': `Hi ${poc.company} team! 🎯
+
+Great news! Your pilot environment is ready for testing.
+
+🔧 What's included:
+• Sandbox access for your team
+• 1000 free WhatsApp messages
+• Real-time analytics dashboard
+• Direct line to our tech support
+
+Your pilot runs for 30 days. Perfect time to see the ${Math.round((poc.dealSizeINR/12)/100000)}L+ monthly value in action!
+
+Let's schedule a kickoff call this week?
+
+Excited to get started!
+${poc.ae}`,
+
+      'Contract': `Hi ${poc.company} team! 📋
+
+We're in the final stretch! Just need your approval on the contract terms.
+
+📝 Final details confirmed:
+• Go-live date: Next month
+• Training sessions: Week 1
+• Full deployment: Week 2-3
+• Success metrics: Week 4
+
+Once signed, we can begin implementation immediately. The sooner we start, the sooner you'll see those ₹${formatINR(Math.round(poc.dealSizeINR/12)).replace('₹', '')} monthly savings!
+
+Ready to transform your customer experience?
+
+Best regards,
+${poc.ae}`
+    };
+
+    return templates[poc.stage as keyof typeof templates] || templates['Discovery'];
+  }, [poc]);
+
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(aiGeneratedContent);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+    }
+  };
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="secondary">
+          WhatsApp Follow-up
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>AI Generated WhatsApp Message</DialogTitle>
+          <p className="text-sm text-muted-foreground">
+            For {poc.company} • Stage: {poc.stage} • Deal: {formatINR(poc.dealSizeINR)}
+          </p>
+        </DialogHeader>
+        
+        <div className="space-y-4">
+          <div className="bg-muted/30 p-4 rounded-lg">
+            <pre className="whitespace-pre-wrap text-sm font-sans leading-relaxed">
+              {aiGeneratedContent}
+            </pre>
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <div className="flex gap-2">
+              <Button
+                onClick={copyToClipboard}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <Copy className="h-4 w-4" />
+                {copied ? 'Copied!' : 'Copy Message'}
+              </Button>
+            </div>
+            
+            <Button asChild size="sm" className="bg-[#25D366] hover:bg-[#20B954] text-white">
+              <Link
+                href={
+                  `/tools/whatsapp-composer?template=roi-followup` +
+                  `&company=${encodeURIComponent(poc.company)}` +
+                  `&aeName=${encodeURIComponent(poc.ae)}` +
+                  `&amount=${encodeURIComponent(String(Math.round(poc.dealSizeINR / 12)))}` +
+                  `&hinglish=1`
+                }
+                className="flex items-center gap-2"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Send via WhatsApp Composer
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 // simple hook to fetch records from the POC context in dashboard-shell via DOM event bridge

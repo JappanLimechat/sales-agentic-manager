@@ -44,6 +44,16 @@ export function ManagerView({ records }: { records: POCRecord[] }) {
     { month: "Jan", requests: 28, sentiment: 82 },
   ], [])
 
+  // Top feature requests data (moved from Executive view)
+  const featureData = React.useMemo(() => [
+    { name: "WhatsApp API (IN)", count: 42 },
+    { name: "UPI status", count: 35 },
+    { name: "Hinglish", count: 33 },
+    { name: "ONDC catalog", count: 28 },
+    { name: "GST invoices", count: 24 },
+    { name: "Vernacular", count: 22 },
+  ], [])
+
   // Competitor analysis
   const competitorData = React.useMemo(() => [
     { competitor: "Intercom", mentions: 5, sentiment: "Price concerns" },
@@ -123,38 +133,18 @@ export function ManagerView({ records }: { records: POCRecord[] }) {
         </Card>
       </div>
 
-      {/* Feature Request Trends Chart */}
-      <Card>
+       {/* AI Generated Summary */}
+       <Card>
         <CardHeader>
-          <CardTitle>Feature Request & Sentiment Trends</CardTitle>
+          <CardTitle>AI Generated Insights Summary</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={featureTrends}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <RTooltip />
-                <Legend />
-                <Area 
-                  type="monotone" 
-                  dataKey="requests" 
-                  stackId="1"
-                  stroke="#FF6B35" 
-                  fill="#FF6B35" 
-                  fillOpacity={0.6}
-                  name="Feature Requests"
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="sentiment" 
-                  stroke="#667eea" 
-                  strokeWidth={3}
-                  name="Sentiment %"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+          <div className="bg-muted/30 p-4 rounded-lg">
+            <p className="text-sm leading-relaxed">{aiSummary}</p>
+          </div>
+          <div className="mt-4 flex gap-2">
+            <span className="px-3 py-1 bg-[#22c55e]/20 text-[#22c55e] text-xs rounded-full">Action Items Generated</span>
+            <span className="px-3 py-1 bg-[#667eea]/20 text-[#667eea] text-xs rounded-full">Updated 2 hours ago</span>
           </div>
         </CardContent>
       </Card>
@@ -213,21 +203,63 @@ export function ManagerView({ records }: { records: POCRecord[] }) {
         </Card>
       </div>
 
-      {/* AI Generated Summary */}
-      <Card>
-        <CardHeader>
-          <CardTitle>AI Generated Insights Summary</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="bg-muted/30 p-4 rounded-lg">
-            <p className="text-sm leading-relaxed">{aiSummary}</p>
-          </div>
-          <div className="mt-4 flex gap-2">
-            <span className="px-3 py-1 bg-[#22c55e]/20 text-[#22c55e] text-xs rounded-full">Action Items Generated</span>
-            <span className="px-3 py-1 bg-[#667eea]/20 text-[#667eea] text-xs rounded-full">Updated 2 hours ago</span>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+      {/* Charts Row */}
+        {/* Top Feature Requests Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Top Feature Requests</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={featureData} margin={{ left: 12, right: 12, top: 8, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                  <YAxis allowDecimals={false} />
+                  <RTooltip />
+                  <Legend />
+                  <Bar dataKey="count" name="Mentions" fill="#FF6B35" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Feature Request Trends Chart */}
+        {/* <Card>
+          <CardHeader>
+            <CardTitle>Feature Request & Sentiment Trends</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={featureTrends}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <RTooltip />
+                  <Legend />
+                  <Area 
+                    type="monotone" 
+                    dataKey="requests" 
+                    stackId="1"
+                    stroke="#FF6B35" 
+                    fill="#FF6B35" 
+                    fillOpacity={0.6}
+                    name="Feature Requests"
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="sentiment" 
+                    stroke="#667eea" 
+                    strokeWidth={3}
+                    name="Sentiment %"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card> */}
+      </div>
   )
 }

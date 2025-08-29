@@ -7,7 +7,7 @@ import { defaultPOCs, type POCRecord, Views, Regions, TimeRanges } from "@/data/
 
 export default function Page() {
   const [query, setQuery] = useState("")
-  const [view, setView] = useState<(typeof Views)[number]>("Executive")
+  const [view, setView] = useState<(typeof Views)[number]>("Manager")
   const [region, setRegion] = useState<(typeof Regions)[number]>("All India")
   const [timeRange, setTimeRange] = useState<(typeof TimeRanges)[number]>("This Month")
   const [language, setLanguage] = useState<"EN" | "HI">("EN")
